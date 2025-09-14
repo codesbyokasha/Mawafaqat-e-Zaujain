@@ -4,94 +4,24 @@
   <meta charset="UTF-8">
   <title>Naqsh Maker</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      padding: 10px;
-      margin: 0;
-    }
-    h1 {
-      text-align: center;
-      font-size: clamp(20px, 4vw, 32px);
-    }
-    h2, h3 {
-      text-align: center;
-      font-size: clamp(16px, 3vw, 24px);
-    }
-    input {
-      margin: 5px;
-      padding: 10px;
-      font-size: clamp(14px, 3vw, 18px);
-      width: min(90%, 250px);
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-    button {
-      padding: 10px 20px;
-      font-size: clamp(14px, 3vw, 18px);
-      margin: 10px;
-      border-radius: 6px;
-      border: none;
-      background: #0077cc;
-      color: white;
-      cursor: pointer;
-    }
-    button:hover {
-      background: #005fa3;
-    }
-    #results {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 20px;
-      margin-top: 20px;
-    }
-    .naqsh-container {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-      padding: 10px;
-      width: 100%;
-      max-width: 400px;
-      overflow-x: auto;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      min-width: 280px;
-    }
-    td {
-      border: 1px solid #333;
-      text-align: center;
-      font-size: clamp(12px, 3vw, 18px);
-      padding: 6px;
-    }
-    .sum {
-      font-weight: bold;
-      background: #f0f0f0;
-    }
-    .info {
-      text-align: center;
-      margin: 5px 0;
-      font-size: clamp(12px, 2.5vw, 16px);
-    }
-    .input-area {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin: 10px 0;
-    }
-    @media (min-width: 600px) {
-      .input-area {
-        flex-direction: row;
-        justify-content: center;
-      }
-    }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin:0; padding:10px; }
+    h1 { text-align: center; font-size: clamp(20px, 4vw, 32px); }
+    h2, h3 { text-align: center; font-size: clamp(16px, 3vw, 24px); }
+    input, button { margin: 5px; padding: 10px; font-size: clamp(14px, 3vw, 18px); border-radius: 6px; }
+    input { width: min(90%, 250px); border: 1px solid #ccc; }
+    button { background: #0077cc; color: white; border: none; cursor: pointer; }
+    button:hover { background: #005fa3; }
+    #results { margin-top: 20px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    .naqsh-container { background: white; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.2); padding: 10px; width: 100%; max-width: 400px; }
+    table { border-collapse: collapse; width: 100%; min-width: 280px; }
+    td { border: 1px solid #333; text-align: center; font-size: clamp(12px, 3vw, 18px); padding: 6px; }
+    .sum { font-weight: bold; background: #f0f0f0; }
+    .info { text-align: center; font-size: clamp(12px, 2.5vw, 16px); margin: 5px 0; }
   </style>
 </head>
 <body>
   <h1>Naqsh Maker</h1>
-  <div class="input-area">
+  <div style="text-align:center;">
     <input id="name1" placeholder="پہلا نام درج کریں">
     <input id="name2" placeholder="دوسرا نام درج کریں">
     <button onclick="makeNaqsh()">بنانا شروع کریں</button>
@@ -205,37 +135,33 @@ function makeNaqsh(){
     let val1=abjad[pair[0]]||0;
     let val2=abjad[pair[1]]||0;
     let product=val1*val2;
-    let html=`<div class="naqsh-container"><h2>Pair ${idx+1}: ${pair[0]} , ${pair[1]}</h2>`;
-    html+=`<div class="info">Product=${product}</div>`;
     if(product<=33){
       ["aatshi","baadi","aabi","khaaki"].forEach(type=>{
         let grid=buildNaqsh(type,0,0,true);
-        html+=renderNaqsh(type.toUpperCase()+" (≤33)",grid);
-        pdfData[type].push({letterA:pair[0],letterB:pair[1],valA:val1,valB:val2,product,grid});
+        pdfData[type].push({pair:pair, val1, val2, product, grid});
       });
     } else {
       let modified=product-30;
       let quotient=Math.floor(modified/4);
       let remainder=modified%4;
-      html+=`<div class="info">Quotient=${quotient}, Remainder=${remainder}</div>`;
       ["aatshi","baadi","aabi","khaaki"].forEach(type=>{
         let grid=buildNaqsh(type,quotient,remainder,false);
-        html+=renderNaqsh(type.toUpperCase(),grid);
-        pdfData[type].push({letterA:pair[0],letterB:pair[1],valA:val1,valB:val2,product,modified,quotient,remainder,grid});
+        pdfData[type].push({pair:pair, val1, val2, product, modified, quotient, remainder, grid});
       });
     }
-    html+="</div>";
+  });
+
+  // Preview (group by type)
+  ["aatshi","baadi","aabi","khaaki"].forEach(type=>{
+    let html=`<h2>${type.toUpperCase()} Naqshs</h2>`;
+    pdfData[type].forEach((it,idx)=>{
+      html+=`<div class="info">Pair ${idx+1}: ${it.pair[0]} , ${it.pair[1]} — Product: ${it.product}</div>`;
+      html+=renderNaqsh(type.toUpperCase(), it.grid);
+    });
     results.innerHTML+=html;
   });
-  document.getElementById('downloadBtn').style.display='inline-block';
-}
 
-function computeRowColSumsFromGridArray(grid){
-  let rows=[grid.slice(0,4),grid.slice(4,8),grid.slice(8,12),grid.slice(12,16)];
-  let rowSums=rows.map(r=>r.reduce((a,b)=>a+(+b||0),0));
-  let colSums=[0,0,0,0];
-  for(let r=0;r<4;r++) for(let c=0;c<4;c++) colSums[c]+= (+rows[r][c]||0);
-  return {rows,rowSums,colSums};
+  document.getElementById('downloadBtn').style.display='inline-block';
 }
 
 async function downloadPDF(){
@@ -245,102 +171,84 @@ async function downloadPDF(){
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 20;
 
-  const order = [
-    { title: 'AATSHI Naqshs', items: pdfData.aatshi },
-    { title: 'BAADI Naqshs',  items: pdfData.baadi },
-    { title: 'AABI Naqshs',   items: pdfData.aabi },
-    { title: 'KHAAKI Naqshs', items: pdfData.khaaki }
-  ];
-
   const container = document.createElement('div');
   container.style.width = (pageWidth - margin*2) + 'px';
-  container.style.background = '#fff';
-  container.style.color = '#000';
   container.style.fontFamily = 'Arial, sans-serif';
   container.style.fontSize = '11px';
+  container.style.background = '#fff';
+  document.body.appendChild(container);
 
-  order.forEach(group => {
-    if(group.items.length === 0) return;
-    const h = document.createElement('h2');
-    h.textContent = group.title;
-    h.style.margin = '12px 0';
+  const order = ["aatshi","baadi","aabi","khaaki"];
+  order.forEach(type=>{
+    if(pdfData[type].length===0) return;
+    const h=document.createElement('h2');
+    h.textContent=type.toUpperCase()+" Naqshs";
     container.appendChild(h);
 
-    group.items.forEach((it, idx) => {
-      const info = document.createElement('div');
-      info.textContent = `Pair ${idx+1}: ${it.letterA} , ${it.letterB} — Abjad: ${it.valA} , ${it.valB} — Product: ${it.product}`;
-      if(it.modified !== undefined){
-        info.textContent += ` — Adj: ${it.modified}, Q=${it.quotient}, R=${it.remainder}`;
-      }
-      info.style.marginBottom = '4px';
+    pdfData[type].forEach((it,idx)=>{
+      const info=document.createElement('div');
+      info.textContent=`Pair ${idx+1}: ${it.pair[0]} , ${it.pair[1]} — Product: ${it.product}`;
       container.appendChild(info);
 
-      const table = document.createElement('table');
-      table.style.borderCollapse = 'collapse';
-      table.style.marginBottom = '10px';
-      table.style.width = '100%';
+      const table=document.createElement('table');
+      table.style.borderCollapse='collapse';
+      table.style.marginBottom='8px';
+      table.style.width='100%';
 
-      const comp = computeRowColSumsFromGridArray(it.grid);
+      const rows=[it.grid.slice(0,4),it.grid.slice(4,8),it.grid.slice(8,12),it.grid.slice(12,16)];
+      const rowSums=rows.map(r=>r.reduce((a,b)=>a+(+b||0),0));
+      const colSums=[0,0,0,0]; for(let r=0;r<4;r++) for(let c=0;c<4;c++) colSums[c]+= (+rows[r][c]||0);
+
       for(let r=0;r<4;r++){
-        const tr = document.createElement('tr');
+        const tr=document.createElement('tr');
         for(let c=0;c<4;c++){
-          const td = document.createElement('td');
-          td.style.border = '1px solid #222';
-          td.style.padding = '6px';
-          td.style.textAlign = 'center';
-          td.textContent = comp.rows[r][c] || '';
+          const td=document.createElement('td');
+          td.textContent=rows[r][c]||'';
+          td.style.border='1px solid #222';
+          td.style.padding='4px';
           tr.appendChild(td);
         }
-        const sumTd = document.createElement('td');
-        sumTd.style.border = '1px solid #222';
-        sumTd.style.padding = '6px';
-        sumTd.style.fontWeight = '700';
-        sumTd.style.background = '#f0f0f0';
-        sumTd.textContent = comp.rowSums[r];
+        const sumTd=document.createElement('td');
+        sumTd.textContent=rowSums[r];
+        sumTd.style.border='1px solid #222';
+        sumTd.style.fontWeight='700';
         tr.appendChild(sumTd);
         table.appendChild(tr);
       }
-      const trSum = document.createElement('tr');
+      const tr=document.createElement('tr');
       for(let c=0;c<4;c++){
-        const td = document.createElement('td');
-        td.style.border = '1px solid #222';
-        td.style.padding = '6px';
-        td.style.fontWeight = '700';
-        td.style.background = '#f0f0f0';
-        td.textContent = comp.colSums[c];
-        trSum.appendChild(td);
+        const td=document.createElement('td');
+        td.textContent=colSums[c];
+        td.style.border='1px solid #222';
+        td.style.fontWeight='700';
+        tr.appendChild(td);
       }
-      const corner = document.createElement('td');
-      corner.style.border = '1px solid #222';
-      corner.style.background = '#f0f0f0';
-      trSum.appendChild(corner);
-      table.appendChild(trSum);
+      const empty=document.createElement('td'); tr.appendChild(empty);
+      table.appendChild(tr);
 
       container.appendChild(table);
     });
   });
 
-  container.style.position = 'fixed';
-  container.style.left = '-9999px';
-  document.body.appendChild(container);
+  const canvas=await html2canvas(container,{scale:2});
+  const imgData=canvas.toDataURL('image/png');
+  const imgWidth=pageWidth - margin*2;
+  const imgHeight=(canvas.height*imgWidth)/canvas.width;
+  let heightLeft=imgHeight;
+  let position=margin;
 
-  const scale = 2.0;
-  const canvas = await html2canvas(container, { scale, useCORS: true, allowTaint: true });
-  const imgData = canvas.toDataURL('image/png');
+  doc.addImage(imgData,'PNG',margin,position,imgWidth,imgHeight);
+  heightLeft-= (pageHeight - margin*2);
 
-  const imgWidth = pageWidth - margin*2;
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
-  let heightLeft = imgHeight;
-  let position = 0;
-
-  while(heightLeft > 0){
-    doc.addImage(imgData, 'PNG', margin, position ? margin - (imgHeight - heightLeft) : margin, imgWidth, imgHeight);
-    heightLeft -= (pageHeight - margin*2);
-    if(heightLeft > 0) doc.addPage();
+  while(heightLeft>0){
+    position=heightLeft-imgHeight+margin;
+    doc.addPage();
+    doc.addImage(imgData,'PNG',margin,position,imgWidth,imgHeight);
+    heightLeft-= (pageHeight - margin*2);
   }
 
   document.body.removeChild(container);
-  doc.save('naqsh_all_styles.pdf');
+  doc.save('naqsh_all.pdf');
 }
 </script>
 </body>
