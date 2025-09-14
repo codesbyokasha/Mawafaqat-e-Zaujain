@@ -17,6 +17,7 @@
     td { border: 1px solid #333; text-align: center; font-size: clamp(12px, 3vw, 18px); padding: 6px; }
     .sum { font-weight: bold; background: #f0f0f0; }
     .info { text-align: center; font-size: clamp(12px, 2.5vw, 16px); margin: 5px 0; }
+    .warning { color: red; font-size: 14px; text-align: center; }
   </style>
 </head>
 <body>
@@ -35,11 +36,36 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
 <script>
+// ✅ Updated Abjad mapping (Arabic + Urdu inclusive)
 const abjad = {
-  'ا':1,'ب':2,'ج':3,'د':4,'ه':5,'و':6,'ز':7,'ح':8,'ط':9,
-  'ی':10,'ئ':10,'ک':20,'ل':30,'م':40,'ن':50,'س':60,'ع':70,
-  'ف':80,'ص':90,'ق':100,'ر':200,'ش':300,'ت':400,'ث':500,
-  'خ':600,'ذ':700,'ض':800,'ظ':900,'غ':1000
+  'ا':1,'أ':1,'إ':1,'آ':1,'ء':1, // Alif + Hamzah forms
+  'ب':2,'پ':2,
+  'ج':3,'چ':3,
+  'د':4,
+  'ه':5,'ہ':5,'ۃ':5,'ہٰ':5,
+  'و':6,
+  'ز':7,
+  'ح':8,
+  'ط':9,
+  'ی':10,'ئ':10,'ے':10,
+  'ک':20,'گ':20,
+  'ل':30,
+  'م':40,
+  'ن':50,'ں':50,
+  'س':60,
+  'ع':70,
+  'ف':80,
+  'ص':90,
+  'ق':100,
+  'ر':200,'ڑ':200,
+  'ش':300,
+  'ت':400,'ٹ':400,
+  'ث':500,
+  'خ':600,
+  'ذ':700,
+  'ض':800,
+  'ظ':900,
+  'غ':1000
 };
 
 const layouts = {
@@ -124,11 +150,18 @@ function makeNaqsh(){
   
   let pairs=getPairs(name1,name2);
   pairs.forEach((pair,idx)=>{
-    let val1=abjad[pair[0]]||0;
-    let val2=abjad[pair[1]]||0;
+    let val1=abjad[pair[0]];
+    let val2=abjad[pair[1]];
+    let warnings = "";
+
+    if(val1===undefined) { val1=0; warnings += `⚠ Unknown letter: ${pair[0]}<br>`; }
+    if(val2===undefined) { val2=0; warnings += `⚠ Unknown letter: ${pair[1]}<br>`; }
+
     let product=val1*val2;
     let html=`<div class="naqsh-container"><h2>Pair ${idx+1}: ${pair[0]} , ${pair[1]}</h2>`;
     html+=`<div class="info">Product=${product}</div>`;
+    if(warnings) html+=`<div class="warning">${warnings}</div>`;
+
     if(product<=33){
       ["aatshi","baadi","aabi","khaaki"].forEach(type=>{
         let grid=buildNaqsh(type,0,0,true);
@@ -173,7 +206,6 @@ async function downloadPDF(){
     for(let idx=0; idx<pdfData[type].length; idx++){
       let it = pdfData[type][idx];
 
-      // Build container
       const container=document.createElement('div');
       container.style.width=(pageWidth - margin*2)+'px';
       container.style.fontFamily='Arial';
