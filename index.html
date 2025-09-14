@@ -99,11 +99,7 @@ function renderNaqsh(title, grid){
   let rows = [grid.slice(0,4), grid.slice(4,8), grid.slice(8,12), grid.slice(12,16)];
   let rowSums = rows.map(r=>r.reduce((a,b)=>a+(+b||0),0));
   let colSums = [0,0,0,0];
-  for(let r=0;r<4;r++){
-    for(let c=0;c<4;c++){
-      colSums[c]+= (+rows[r][c]||0);
-    }
-  }
+  for(let r=0;r<4;r++) for(let c=0;c<4;c++) colSums[c]+= (+rows[r][c]||0);
 
   let html = `<div class="naqsh-container"><h3>${title}</h3><table>`;
   for(let i=0;i<4;i++){
@@ -135,29 +131,26 @@ function makeNaqsh(){
     let val1=abjad[pair[0]]||0;
     let val2=abjad[pair[1]]||0;
     let product=val1*val2;
+    let html=`<div class="naqsh-container"><h2>Pair ${idx+1}: ${pair[0]} , ${pair[1]}</h2>`;
+    html+=`<div class="info">Product=${product}</div>`;
     if(product<=33){
       ["aatshi","baadi","aabi","khaaki"].forEach(type=>{
         let grid=buildNaqsh(type,0,0,true);
-        pdfData[type].push({pair:pair, val1, val2, product, grid});
+        pdfData[type].push({pair:pair, product, grid});
+        html+=renderNaqsh(type.toUpperCase(), grid);
       });
     } else {
       let modified=product-30;
       let quotient=Math.floor(modified/4);
       let remainder=modified%4;
+      html+=`<div class="info">Quotient=${quotient}, Remainder=${remainder}</div>`;
       ["aatshi","baadi","aabi","khaaki"].forEach(type=>{
         let grid=buildNaqsh(type,quotient,remainder,false);
-        pdfData[type].push({pair:pair, val1, val2, product, modified, quotient, remainder, grid});
+        pdfData[type].push({pair:pair, product, grid});
+        html+=renderNaqsh(type.toUpperCase(), grid);
       });
     }
-  });
-
-  // Preview (group by type)
-  ["aatshi","baadi","aabi","khaaki"].forEach(type=>{
-    let html=`<h2>${type.toUpperCase()} Naqshs</h2>`;
-    pdfData[type].forEach((it,idx)=>{
-      html+=`<div class="info">Pair ${idx+1}: ${it.pair[0]} , ${it.pair[1]} — Product: ${it.product}</div>`;
-      html+=renderNaqsh(type.toUpperCase(), it.grid);
-    });
+    html+="</div>";
     results.innerHTML+=html;
   });
 
@@ -171,84 +164,42 @@ async function downloadPDF(){
   const pageHeight = doc.internal.pageSize.getHeight();
   const margin = 20;
 
-  const container = document.createElement('div');
-  container.style.width = (pageWidth - margin*2) + 'px';
-  container.style.fontFamily = 'Arial, sans-serif';
-  container.style.fontSize = '11px';
-  container.style.background = '#fff';
-  document.body.appendChild(container);
-
   const order = ["aatshi","baadi","aabi","khaaki"];
   order.forEach(type=>{
     if(pdfData[type].length===0) return;
-    const h=document.createElement('h2');
-    h.textContent=type.toUpperCase()+" Naqshs";
-    container.appendChild(h);
+    doc.setFontSize(14);
+    doc.text(type.toUpperCase()+" Naqshs", pageWidth/2, margin, {align:"center"});
+    doc.setFontSize(11);
 
     pdfData[type].forEach((it,idx)=>{
-      const info=document.createElement('div');
-      info.textContent=`Pair ${idx+1}: ${it.pair[0]} , ${it.pair[1]} — Product: ${it.product}`;
-      container.appendChild(info);
+      // create a temporary element for each naqsh
+      const container=document.createElement('div');
+      container.style.width=(pageWidth - margin*2)+'px';
+      container.style.fontFamily='Arial';
+      container.style.fontSize='11px';
+      container.innerHTML=`<div>Pair ${idx+1}: ${it.pair[0]} , ${it.pair[1]} — Product: ${it.product}</div>`+renderNaqsh("", it.grid);
 
-      const table=document.createElement('table');
-      table.style.borderCollapse='collapse';
-      table.style.marginBottom='8px';
-      table.style.width='100%';
+      document.body.appendChild(container);
+      html2canvas(container,{scale:2}).then(canvas=>{
+        const imgData=canvas.toDataURL('image/png');
+        const imgWidth=pageWidth - margin*2;
+        const imgHeight=(canvas.height*imgWidth)/canvas.width;
 
-      const rows=[it.grid.slice(0,4),it.grid.slice(4,8),it.grid.slice(8,12),it.grid.slice(12,16)];
-      const rowSums=rows.map(r=>r.reduce((a,b)=>a+(+b||0),0));
-      const colSums=[0,0,0,0]; for(let r=0;r<4;r++) for(let c=0;c<4;c++) colSums[c]+= (+rows[r][c]||0);
-
-      for(let r=0;r<4;r++){
-        const tr=document.createElement('tr');
-        for(let c=0;c<4;c++){
-          const td=document.createElement('td');
-          td.textContent=rows[r][c]||'';
-          td.style.border='1px solid #222';
-          td.style.padding='4px';
-          tr.appendChild(td);
+        let y=doc.lastAutoTable ? doc.lastAutoTable.finalY+10 : margin+20;
+        if(y+imgHeight > pageHeight-margin){
+          doc.addPage();
+          y=margin;
         }
-        const sumTd=document.createElement('td');
-        sumTd.textContent=rowSums[r];
-        sumTd.style.border='1px solid #222';
-        sumTd.style.fontWeight='700';
-        tr.appendChild(sumTd);
-        table.appendChild(tr);
-      }
-      const tr=document.createElement('tr');
-      for(let c=0;c<4;c++){
-        const td=document.createElement('td');
-        td.textContent=colSums[c];
-        td.style.border='1px solid #222';
-        td.style.fontWeight='700';
-        tr.appendChild(td);
-      }
-      const empty=document.createElement('td'); tr.appendChild(empty);
-      table.appendChild(tr);
+        doc.addImage(imgData,'PNG',margin,y,imgWidth,imgHeight);
+        document.body.removeChild(container);
 
-      container.appendChild(table);
+        if(type===order[order.length-1] && idx===pdfData[type].length-1){
+          doc.save('naqsh_all.pdf');
+        }
+      });
     });
-  });
-
-  const canvas=await html2canvas(container,{scale:2});
-  const imgData=canvas.toDataURL('image/png');
-  const imgWidth=pageWidth - margin*2;
-  const imgHeight=(canvas.height*imgWidth)/canvas.width;
-  let heightLeft=imgHeight;
-  let position=margin;
-
-  doc.addImage(imgData,'PNG',margin,position,imgWidth,imgHeight);
-  heightLeft-= (pageHeight - margin*2);
-
-  while(heightLeft>0){
-    position=heightLeft-imgHeight+margin;
     doc.addPage();
-    doc.addImage(imgData,'PNG',margin,position,imgWidth,imgHeight);
-    heightLeft-= (pageHeight - margin*2);
-  }
-
-  document.body.removeChild(container);
-  doc.save('naqsh_all.pdf');
+  });
 }
 </script>
 </body>
