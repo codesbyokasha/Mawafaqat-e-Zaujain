@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+  <meta charset="UTF-8">
+  <title>Naqsh Maker</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 10px;
+      margin: 0;
+    }
+    h1 {
+      text-align: center;
+      font-size: clamp(20px, 6vw, 32px);
+      margin-bottom: 10px;
+    }
+    h2, h3 {
+      text-align: center;
+      font-size: clamp(16px, 5vw, 24px);
+    }
+    input {
+      margin: 5px;
+      padding: 12px;
+      font-size: clamp(14px, 4vw, 18px);
+      width: 100%;
+      max-width: 250px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+    }
+    button {
+      padding: 12px 20px;
+      font-size: clamp(14px, 4vw, 18px);
+      margin: 10px;
+      border-radius: 6px;
+      border: none;
+      background: #0077cc;
+      color: white;
+      cursor: pointer;
+      width: 100%;
+      max-width: 250px;
+    }
+    button:hover {
+      background: #005fa3;
+    }
+    #results {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      margin-top: 20px;
+      width: 100%;
+    }
+    .naqsh-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      padding: 10px;
+      width: 100%;
+      max-width: 95vw;
+      overflow-x: auto;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      min-width: 260px;
+    }
+    td {
+      border: 1px solid #333;
+      text-align: center;
+      font-size: clamp(12px, 3.5vw, 18px);
+      padding: 6px;
+      word-break: break-word;
+    }
+    .sum {
+      font-weight: bold;
+      background: #f0f0f0;
+    }
+    .info {
+      text-align: center;
+      margin: 5px 0;
+      font-size: clamp(12px, 3vw, 16px);
+    }
+    .input-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 10px 0;
+      width: 100%;
+    }
+    @media (min-width: 600px) {
+      .input-area {
+        flex-direction: row;
+        justify-content: center;
+      }
+      button {
+        width: auto;
+      }
+    }
+    #downloadBtn {
+      display: none;
+      background: #28a745;
+      max-width: 250px;
+    }
+    #downloadBtn:hover {
+      background: #1e7e34;
+    }
+  </style>
+</head>
+<body>
+  <h1>Naqsh Maker</h1>
+  <div class="input-area">
+    <input id="name1" placeholder="پہلا نام درج کریں">
+    <input id="name2" placeholder="دوسرا نام درج کریں">
+    <button onclick="makeNaqsh()">بنانا شروع کریں</button>
+  </div>
+  <div id="results"></div>
+  <div style="text-align:center;">
+    <button id="downloadBtn" onclick="downloadPDF()">📄 Download PDF</button>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+const abjad = {
+  'ا':1,'ب':2,'ج':3,'د':4,'ه':5,'و':6,'ز':7,'ح':8,'ط':9,
+  'ی':10,'ئ':10,'ک':20,'ل':30,'م':40,'ن':50,'س':60,'ع':70,
+  'ف':80,'ص':90,'ق':100,'ر':200,'ش':300,'ت':400,'ث':500,
+  'خ':600,'ذ':700,'ض':800,'ظ':900,'غ':1000
+};
+
+const layouts = {
+  aatshi: [8,11,14,1, 13,2,7,12, 3,16,9,6, 10,5,4,15],
+  baadi:  [11,8,1,14, 2,13,12,7, 16,3,6,9, 5,10,15,4],
+  aabi:   [14,1,8,11, 7,12,13,2, 9,6,3,16, 4,15,10,5],
+  khaaki: [1,14,11,8, 12,7,2,13, 6,9,16,3, 15,4,5,10]
+};
+
+const smallLayouts = {
+  aatshi: [7,10,13,null, 12,1,6,11, 2,15,8,5, 9,4,3,14],
+  baadi:  [10,7,null,13, 1,12,11,6, 15,2,5,8, 4,9,14,3],
+  aabi:   [13,null,7,10, 6,11,12,1, 8,5,2,15, 3,14,9,4],
+  khaaki: [null,13,10,7, 11,6,1,12, 5,8,15,2, 14,3,4,9]
+};
+
+function getPairs(name1, name2){
+  let arr1 = name1.replace(/\s+/g,'').split('');
+  let arr2 = name2.replace(/\s+/g,'').split('');
+  let maxLen = Math.max(arr1.length, arr2.length);
+  let pairs=[];
+  for(let i=0;i<maxLen;i++){
+    pairs.push([arr1[i%arr1.length], arr2[i%arr2.length]]);
+  }
+  return pairs;
+}
+
+function buildNaqsh(type, quotient, remainder, smallCase){
+  let grid = Array(16).fill('');
+  if(smallCase){
+    let layout = smallLayouts[type];
+    layout.forEach((val, idx)=>{
+      if(val!==null) grid[idx] = val;
+    });
+  } else {
+    let nums = [];
+    for(let i=0;i<16;i++) nums.push(quotient+i);
+
+    if(remainder > 0){
+      let startIndex = remainder===1 ? 12 : remainder===2 ? 8 : 4; 
+      for(let i=startIndex; i<16; i++){
+        nums[i] += 1;
+      }
+    }
+
+    let layout = layouts[type];
+    layout.forEach((khana, idx)=>{
+      grid[idx] = nums[khana-1];
+    });
+  }
+  return grid;
+}
+
+function renderNaqsh(title, grid){
+  let rows = [grid.slice(0,4), grid.slice(4,8), grid.slice(8,12), grid.slice(12,16)];
+  let rowSums = rows.map(r=>r.reduce((a,b)=>a+(+b||0),0));
+  let colSums = [0,0,0,0];
+  for(let r=0;r<4;r++){
+    for(let c=0;c<4;c++){
+      colSums[c]+= (+rows[r][c]||0);
+    }
+  }
+
+  let html = `<div class="naqsh-container"><h3>${title}</h3><table>`;
+  for(let i=0;i<4;i++){
+    html+="<tr>";
+    for(let j=0;j<4;j++){
+      html+=`<td>${rows[i][j]||''}</td>`;
+    }
+    html+=`<td class="sum">${rowSums[i]}</td></tr>`;
+  }
+  html+="<tr>";
+  for(let j=0;j<4;j++){
+    html+=`<td class="sum">${colSums[j]}</td>`;
+  }
+  html+="<td></td></tr>";
+  html+="</table></div>";
+  return html;
+}
+
+function makeNaqsh(){
+  let name1=document.getElementById('name1').value.trim();
+  let name2=document.getElementById('name2').value.trim();
+  let results=document.getElementById('results');
+  results.innerHTML='';
+  if(!name1||!name2){alert('Enter both names');return;}
+  
+  let pairs=getPairs(name1,name2);
+  pairs.forEach((pair,idx)=>{
+    let val1=abjad[pair[0]]||0;
+    let val2=abjad[pair[1]]||0;
+    let product=val1*val2;
+    let html=`<div class="naqsh-container"><h2>Pair ${idx+1}: ${pair[0]} , ${pair[1]}</h2>`;
+    html+=`<div class="info">Product=${product}</div>`;
+    if(product<=33){
+      html+=renderNaqsh("Aatshi (≤33)", buildNaqsh("aatshi",0,0,true));
+      html+=renderNaqsh("Baadi (≤33)", buildNaqsh("baadi",0,0,true));
+      html+=renderNaqsh("Aabi (≤33)", buildNaqsh("aabi",0,0,true));
+      html+=renderNaqsh("Khaaki (≤33)", buildNaqsh("khaaki",0,0,true));
+    } else {
+      let modified=product-30;
+      let quotient=Math.floor(modified/4);
+      let remainder=modified%4;
+      html+=`<div class="info">Quotient=${quotient}, Remainder=${remainder}</div>`;
+      html+=renderNaqsh("Aatshi", buildNaqsh("aatshi",quotient,remainder,false));
+      html+=renderNaqsh("Baadi", buildNaqsh("baadi",quotient,remainder,false));
+      html+=renderNaqsh("Aabi", buildNaqsh("aabi",quotient,remainder,false));
+      html+=renderNaqsh("Khaaki", buildNaqsh("khaaki",quotient,remainder,false));
+    }
+    html+="</div>";
+    results.innerHTML+=html;
+  });
+
+  document.getElementById("downloadBtn").style.display="inline-block";
+}
+
+function downloadPDF(){
+  const element = document.getElementById('results');
+  html2pdf().from(element).set({
+    margin: 0.5,
+    filename: 'naqsh.pdf',
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+  }).save();
+}
+</script>
+</body>
+</html>
